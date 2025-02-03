@@ -1,7 +1,8 @@
+import os
 import sys
 import json
 from tabulate import tabulate
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 from getpass import getpass
 
 class Password_manager:
@@ -33,9 +34,14 @@ class Password_manager:
                 return False
 
     def load_key(self):
-        with open("encrypt.key", "rb") as encryptkey:
+        key_path = os.path.join(os.path.dirname(__file__), 'encrypt.key')
+        
+        if not os.path.exists(key_path):
+            raise FileNotFoundError("Encryption key file 'encrypt.key' was not found.")
+
+        with open(key_path, "rb") as encryptkey:
             key = encryptkey.read()
-            return key
+        return key
 
     def encrypt_file(self, password_dict):
         f = Fernet(self.key)
@@ -43,9 +49,12 @@ class Password_manager:
         return f.encrypt(json_data)
 
     def decrypt_file(self, encrypted_data):
-        f = Fernet(self.key)
-        decrypted_data = f.decrypt(encrypted_data)
-        return json.loads(decrypted_data.decode('utf-8'))
+        try:
+            f = Fernet(self.key)
+            decrypted_data = f.decrypt(encrypted_data)
+            return json.loads(decrypted_data.decode('utf-8'))
+        except InvalidToken:
+            raise Exception("Incorrect decryption key")
 
     def save(self):
         encrypted_data = self.encrypt_file(self.password_dict)
@@ -111,6 +120,7 @@ def main ():
         "delete": delete,
         "list passwords": list_passwords,
         "quit": quit,
+        "q": quit
     }
     while not manager.verify_identity():
         pass
